@@ -1,29 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseClient } from '@/lib/supabase';
+import fipeData from '@/public/fipe-data.json';
 
 export async function GET(request: NextRequest) {
   try {
     const tipo = request.nextUrl.searchParams.get('tipo')?.toUpperCase() || 'CAR';
     const brandCode = request.nextUrl.searchParams.get('brand_code');
-    const modelo = request.nextUrl.searchParams.get('modelo');
+    const modeloNome = request.nextUrl.searchParams.get('modelo');
 
-    let query = supabaseClient
-      .from('fipe_versoes_unicas')
-      .select('version, categoria, combustivel')
-      .eq('type', tipo);
+    const brand = fipeData.brands.find(
+      (b: any) => b.type === tipo && b.code === parseInt(brandCode || '0')
+    );
 
-    if (brandCode) query = query.eq('brand_code', parseInt(brandCode));
-    if (modelo) query = query.eq('model_name', modelo);
+    if (!brand) {
+      return NextResponse.json({ versoes: [], total: 0 });
+    }
 
-    const { data, error } = await query.order('version');
+    const model = brand.models.find((m: any) => m.name === modeloNome);
 
-    if (error) throw error;
+    if (!model) {
+      return NextResponse.json({ versoes: [], total: 0 });
+    }
 
-    const versoes = data.map(item => ({
-      versao: item.version,
-      categoria: item.categoria,
-      combustivel: item.combustivel
-    }));
+    const versoes = model.versions
+      .map((v: string) => ({
+        versao: v,
+        categoria: null,
+        combustivel: null
+      }))
+      .sort((a, b) => a.versao.localeCompare(b.versao));
 
     return NextResponse.json({ versoes, total: versoes.length });
   } catch (error: any) {
