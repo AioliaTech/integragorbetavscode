@@ -45,6 +45,27 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
     }
   }, [tipo]);
 
+  // Quando marca mudar, carregar novos modelos
+  useEffect(() => {
+    if (marcaSelecionada) {
+      carregarModelos();
+      // Limpar arrays antigos
+      setTodasVersoes([]);
+    } else {
+      setTodosModelos([]);
+      setTodasVersoes([]);
+    }
+  }, [marcaSelecionada]);
+
+  // Quando modelo mudar, carregar novas versões
+  useEffect(() => {
+    if (marcaSelecionada && modeloSelecionado) {
+      carregarVersoes();
+    } else {
+      setTodasVersoes([]);
+    }
+  }, [marcaSelecionada, modeloSelecionado]);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (marcaRef.current && !marcaRef.current.contains(e.target as Node)) {
@@ -117,11 +138,11 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   }
 
   async function carregarVersoes() {
+    if (!marcaSelecionada || !modeloSelecionado) return;
+    
     try {
       const tipoAPI = mapTipo(tipo);
-      let url = `/api/fipe-simple/versoes?tipo=${tipoAPI}`;
-      if (marcaSelecionada) url += `&brand_code=${marcaSelecionada.brand_code}`;
-      if (modeloSelecionado) url += `&modelo=${encodeURIComponent(modeloSelecionado)}`;
+      const url = `/api/fipe-simple/versoes?tipo=${tipoAPI}&brand_code=${marcaSelecionada.brand_code}&modelo=${encodeURIComponent(modeloSelecionado)}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -152,6 +173,8 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
     setModeloInput('');
     setModeloSelecionado('');
     setVersaoInput('');
+    setTodosModelos([]); // Limpar array de modelos
+    setTodasVersoes([]); // Limpar array de versões
     onDadosChange({ marca: m.brand_value, brandCode: m.brand_code, modelo: '', versao: '' });
   }
 
@@ -160,16 +183,13 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
     setModeloInput(m);
     setShowModelos(false);
     setVersaoInput('');
+    setTodasVersoes([]); // Limpar versões antigas
     onDadosChange({ 
       marca: marcaInput, 
       brandCode: marcaSelecionada?.brand_code || null, 
       modelo: m, 
       versao: '' 
     });
-    setTimeout(() => {
-      carregarVersoes();
-      setShowVersoes(true);
-    }, 100);
   }
 
   function selecionarVersao(v: any) {
@@ -196,6 +216,17 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
           onChange={(e) => {
             setMarcaInput(e.target.value);
             setShowMarcas(true);
+            
+            // Se apagou tudo, limpar seleção
+            if (e.target.value === '') {
+              setMarcaSelecionada(null);
+              setModeloSelecionado('');
+              setModeloInput('');
+              setVersaoInput('');
+              setTodosModelos([]);
+              setTodasVersoes([]);
+              onDadosChange({ marca: '', brandCode: null, modelo: '', versao: '' });
+            }
           }}
           onFocus={() => setShowMarcas(true)}
           className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
@@ -234,13 +265,28 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
           onChange={(e) => {
             setModeloInput(e.target.value);
             setShowModelos(true);
+            
+            // Se apagou tudo, limpar seleção
+            if (e.target.value === '') {
+              setModeloSelecionado('');
+              setVersaoInput('');
+              setTodasVersoes([]);
+              onDadosChange({ 
+                marca: marcaInput, 
+                brandCode: marcaSelecionada?.brand_code || null, 
+                modelo: '', 
+                versao: '' 
+              });
+            }
           }}
           onFocus={() => {
-            if (!marcaSelecionada) return;
-            setShowModelos(true);
-            if (todosModelos.length === 0) carregarModelos();
+            if (marcaSelecionada) {
+              setShowModelos(true);
+              if (todosModelos.length === 0) carregarModelos();
+            }
           }}
-          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+          disabled={!marcaSelecionada}
+          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
           placeholder="Clique aqui..."
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
@@ -267,19 +313,34 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
 
       {/* VERSÃO */}
       <div ref={versaoRef} className="relative">
-        <label className="block text-sm font-semibold mb-2">Versão</label>
+        <label className="block text-sm font-semibold mb-2">
+          Versão {!modeloSelecionado && <span className="text-orange-500 text-xs">(selecione modelo)</span>}
+        </label>
         <input
           type="text"
           value={versaoInput}
           onChange={(e) => {
             setVersaoInput(e.target.value);
             setShowVersoes(true);
+            
+            // Se apagou tudo, notificar parent
+            if (e.target.value === '') {
+              onDadosChange({ 
+                marca: marcaInput, 
+                brandCode: marcaSelecionada?.brand_code || null, 
+                modelo: modeloInput, 
+                versao: '' 
+              });
+            }
           }}
           onFocus={() => {
-            setShowVersoes(true);
-            if (todasVersoes.length === 0) carregarVersoes();
+            if (marcaSelecionada && modeloSelecionado) {
+              setShowVersoes(true);
+              if (todasVersoes.length === 0) carregarVersoes();
+            }
           }}
-          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+          disabled={!modeloSelecionado}
+          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
           placeholder="Clique aqui..."
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
