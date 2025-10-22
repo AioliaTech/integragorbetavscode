@@ -7,7 +7,11 @@ export async function GET(request: NextRequest) {
     const brandCode = request.nextUrl.searchParams.get('brand_code');
     const modeloNome = request.nextUrl.searchParams.get('modelo');
 
-    const brand = fipeData.brands.find(
+    // Acessa a estrutura correta
+    const data: any = fipeData;
+    const brands = data.tabelafipe?.brands || data.brands || [];
+
+    const brand = brands.find(
       (b: any) => b.type === tipo && b.code === parseInt(brandCode || '0')
     );
 
@@ -27,7 +31,7 @@ export async function GET(request: NextRequest) {
         categoria: null,
         combustivel: null
       }))
-      .sort((a, b) => a.versao.localeCompare(b.versao));
+      .sort((a: any, b: any) => a.versao.localeCompare(b.versao));
 
     return NextResponse.json({ versoes, total: versoes.length });
   } catch (error: any) {
