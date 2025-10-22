@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseClient } from '@/lib/supabase';
+import fipeData from '@/public/fipe-data.json';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,16 +10,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'brand_code obrigatório', modelos: [] }, { status: 400 });
     }
 
-    const { data, error } = await supabaseClient
-      .from('fipe_modelos_unicos')
-      .select('model_name')
-      .eq('type', tipo)
-      .eq('brand_code', parseInt(brandCode))
-      .order('model_name');
+    const brand = fipeData.brands.find(
+      (b: any) => b.type === tipo && b.code === parseInt(brandCode)
+    );
 
-    if (error) throw error;
+    if (!brand) {
+      return NextResponse.json({ modelos: [], total: 0 });
+    }
 
-    const modelos = data.map(item => item.model_name);
+    const modelos = brand.models
+      .map((m: any) => m.name)
+      .sort((a, b) => a.localeCompare(b));
 
     return NextResponse.json({ modelos, total: modelos.length });
   } catch (error: any) {
