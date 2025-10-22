@@ -1,4 +1,3 @@
-// components/FIPEAutocomplete.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -36,21 +35,16 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   const modeloRef = useRef<HTMLDivElement>(null);
   const versaoRef = useRef<HTMLDivElement>(null);
 
-  // Resetar ao mudar tipo
   useEffect(() => {
-    console.log('🔄 TIPO MUDOU:', tipo);
     limparTudo();
   }, [tipo]);
 
-  // Carregar marcas quando tipo estiver definido
   useEffect(() => {
     if (tipo && tipo.trim()) {
-      console.log('🚀 CARREGANDO MARCAS PARA TIPO:', tipo);
       carregarMarcas();
     }
   }, [tipo]);
 
-  // Click fora fecha dropdowns
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (marcaRef.current && !marcaRef.current.contains(e.target as Node)) {
@@ -68,7 +62,6 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   }, []);
 
   function limparTudo() {
-    console.log('🧹 LIMPANDO TUDO');
     setMarcaSelecionada(null);
     setModeloSelecionado('');
     setMarcaInput('');
@@ -92,76 +85,54 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   }
 
   async function carregarMarcas() {
-    console.log('📡 CHAMANDO API DE MARCAS...');
     try {
       const tipoAPI = mapTipo(tipo);
-      const url = `/api/fipe/marcas?tipo=${tipoAPI}&q=`;
-      console.log('🌐 URL:', url);
+      const url = `/api/fipe-simple/marcas?tipo=${tipoAPI}`;
       
       const response = await fetch(url);
-      console.log('📥 Response Status:', response.status);
-      
       const data = await response.json();
-      console.log('📦 Dados Recebidos:', data);
-      console.log('✅ TOTAL MARCAS RECEBIDAS:', data.marcas?.length || 0);
       
-      if (data.marcas && Array.isArray(data.marcas)) {
-        console.log('🎉 SALVANDO', data.marcas.length, 'MARCAS NO STATE');
-        console.log('📋 PRIMEIRAS 10:', data.marcas.slice(0, 10).map((m: any) => m.brand_value));
-        setTodasMarcas(data.marcas);
-      } else {
-        console.error('❌ FORMATO INVÁLIDO:', data);
-        setTodasMarcas([]);
-      }
+      setTodasMarcas(data.marcas || []);
     } catch (error) {
-      console.error('💥 ERRO AO CARREGAR MARCAS:', error);
+      console.error('Erro ao carregar marcas:', error);
       setTodasMarcas([]);
     }
   }
 
   async function carregarModelos() {
-    if (!marcaSelecionada) {
-      console.log('⚠️ Marca não selecionada');
-      return;
-    }
+    if (!marcaSelecionada) return;
     
-    console.log('📡 CHAMANDO API DE MODELOS...');
     try {
       const tipoAPI = mapTipo(tipo);
-      const url = `/api/fipe/modelos?tipo=${tipoAPI}&brand_code=${marcaSelecionada.brand_code}&q=`;
-      console.log('🌐 URL:', url);
+      const url = `/api/fipe-simple/modelos?tipo=${tipoAPI}&brand_code=${marcaSelecionada.brand_code}`;
       
       const response = await fetch(url);
       const data = await response.json();
-      console.log('✅ TOTAL MODELOS:', data.modelos?.length || 0);
       
       setTodosModelos(data.modelos || []);
     } catch (error) {
-      console.error('💥 ERRO MODELOS:', error);
+      console.error('Erro ao carregar modelos:', error);
       setTodosModelos([]);
     }
   }
 
   async function carregarVersoes() {
-    console.log('📡 CHAMANDO API DE VERSÕES...');
     try {
       const tipoAPI = mapTipo(tipo);
-      let url = `/api/fipe/versoes?tipo=${tipoAPI}&q=`;
+      let url = `/api/fipe-simple/versoes?tipo=${tipoAPI}`;
       if (marcaSelecionada) url += `&brand_code=${marcaSelecionada.brand_code}`;
       if (modeloSelecionado) url += `&modelo=${encodeURIComponent(modeloSelecionado)}`;
       
       const response = await fetch(url);
       const data = await response.json();
-      console.log('✅ TOTAL VERSÕES:', data.versoes?.length || 0);
       
       setTodasVersoes(data.versoes || []);
     } catch (error) {
-      console.error('💥 ERRO VERSÕES:', error);
+      console.error('Erro ao carregar versões:', error);
       setTodasVersoes([]);
     }
   }
 
-  // Filtros
   const marcasFiltradas = marcaInput.trim() 
     ? todasMarcas.filter(m => m.brand_value.toLowerCase().includes(marcaInput.toLowerCase()))
     : todasMarcas;
@@ -174,16 +145,7 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
     ? todasVersoes.filter(v => v.versao.toLowerCase().includes(versaoInput.toLowerCase()))
     : todasVersoes;
 
-  // Log state changes
-  useEffect(() => {
-    console.log('📊 STATE ATUALIZADO:');
-    console.log('   todasMarcas:', todasMarcas.length);
-    console.log('   marcasFiltradas:', marcasFiltradas.length);
-    console.log('   marcaInput:', marcaInput);
-  }, [todasMarcas, marcasFiltradas, marcaInput]);
-
   function selecionarMarca(m: any) {
-    console.log('✅ MARCA SELECIONADA:', m);
     setMarcaSelecionada(m);
     setMarcaInput(m.brand_value);
     setShowMarcas(false);
@@ -194,7 +156,6 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   }
 
   function selecionarModelo(m: string) {
-    console.log('✅ MODELO SELECIONADO:', m);
     setModeloSelecionado(m);
     setModeloInput(m);
     setShowModelos(false);
@@ -212,7 +173,6 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   }
 
   function selecionarVersao(v: any) {
-    console.log('✅ VERSÃO SELECIONADA:', v);
     setVersaoInput(v.versao);
     setShowVersoes(false);
     onDadosChange({ 
@@ -229,47 +189,35 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* MARCA */}
       <div ref={marcaRef} className="relative">
-        <label className="block text-sm font-semibold mb-2">
-          Marca
-        </label>
+        <label className="block text-sm font-semibold mb-2">Marca</label>
         <input
           type="text"
           value={marcaInput}
           onChange={(e) => {
-            console.log('🔤 DIGITANDO MARCA:', e.target.value);
             setMarcaInput(e.target.value);
             setShowMarcas(true);
           }}
-          onFocus={() => {
-            console.log('👆 CLICOU NO CAMPO MARCA');
-            setShowMarcas(true);
-          }}
+          onFocus={() => setShowMarcas(true)}
           className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
           placeholder="Clique aqui..."
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
-        {showMarcas && (
-          <div className="absolute z-30 w-full bg-white border-2 border-red-500 rounded-lg mt-1 shadow-xl">
-            <div className="bg-yellow-100 px-3 py-2 text-xs font-bold text-black border-b">
-              🔍 MOSTRANDO: {marcasFiltradas.length} de {todasMarcas.length}
+        {showMarcas && marcasFiltradas.length > 0 && (
+          <div className="absolute z-30 w-full bg-white border-2 border-gray-200 rounded-lg mt-1 shadow-xl">
+            <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 border-b">
+              {marcasFiltradas.length} de {todasMarcas.length} marcas
             </div>
             <div className="max-h-[20rem] overflow-y-auto">
-              {marcasFiltradas.length === 0 ? (
-                <div className="p-4 text-center text-red-600 font-bold">
-                  ❌ NENHUMA MARCA ENCONTRADA
+              {marcasFiltradas.map((m) => (
+                <div
+                  key={m.brand_code}
+                  onClick={() => selecionarMarca(m)}
+                  className="px-4 py-2.5 cursor-pointer hover:bg-orange-50 border-b last:border-0"
+                >
+                  {m.brand_value}
                 </div>
-              ) : (
-                marcasFiltradas.map((m, idx) => (
-                  <div
-                    key={m.brand_code}
-                    onClick={() => selecionarMarca(m)}
-                    className="px-4 py-2.5 cursor-pointer hover:bg-orange-100 border-b last:border-0"
-                  >
-                    <span className="font-bold text-orange-600">{idx + 1}.</span> {m.brand_value}
-                  </div>
-                ))
-              )}
+              ))}
             </div>
           </div>
         )}
@@ -297,19 +245,19 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
-        {showModelos && marcaSelecionada && (
-          <div className="absolute z-30 w-full bg-white border-2 border-red-500 rounded-lg mt-1 shadow-xl">
-            <div className="bg-yellow-100 px-3 py-2 text-xs font-bold text-black border-b">
-              🔍 {modelosFiltrados.length} de {todosModelos.length}
+        {showModelos && modelosFiltrados.length > 0 && marcaSelecionada && (
+          <div className="absolute z-30 w-full bg-white border-2 border-gray-200 rounded-lg mt-1 shadow-xl">
+            <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 border-b">
+              {modelosFiltrados.length} de {todosModelos.length} modelos
             </div>
             <div className="max-h-[20rem] overflow-y-auto">
-              {modelosFiltrados.map((m, idx) => (
+              {modelosFiltrados.map((m) => (
                 <div
                   key={m}
                   onClick={() => selecionarModelo(m)}
-                  className="px-4 py-2.5 cursor-pointer hover:bg-orange-100 border-b last:border-0"
+                  className="px-4 py-2.5 cursor-pointer hover:bg-orange-50 border-b last:border-0"
                 >
-                  <span className="font-bold text-orange-600">{idx + 1}.</span> {m}
+                  {m}
                 </div>
               ))}
             </div>
@@ -336,19 +284,19 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
-        {showVersoes && (
-          <div className="absolute z-30 w-full bg-white border-2 border-red-500 rounded-lg mt-1 shadow-xl">
-            <div className="bg-yellow-100 px-3 py-2 text-xs font-bold text-black border-b">
-              🔍 {versoesFiltradas.length} de {todasVersoes.length}
+        {showVersoes && versoesFiltradas.length > 0 && (
+          <div className="absolute z-30 w-full bg-white border-2 border-gray-200 rounded-lg mt-1 shadow-xl">
+            <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 border-b">
+              {versoesFiltradas.length} de {todasVersoes.length} versões
             </div>
             <div className="max-h-[20rem] overflow-y-auto">
               {versoesFiltradas.map((v, idx) => (
                 <div
                   key={`${v.versao}-${idx}`}
                   onClick={() => selecionarVersao(v)}
-                  className="px-4 py-2.5 cursor-pointer hover:bg-orange-100 border-b last:border-0"
+                  className="px-4 py-2.5 cursor-pointer hover:bg-orange-50 border-b last:border-0"
                 >
-                  <div><span className="font-bold text-orange-600">{idx + 1}.</span> {v.versao}</div>
+                  <div className="font-medium">{v.versao}</div>
                   {v.categoria && <div className="text-xs text-orange-600 mt-0.5">🏷️ {v.categoria}</div>}
                 </div>
               ))}
