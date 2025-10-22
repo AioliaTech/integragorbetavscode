@@ -5,13 +5,17 @@ export async function GET(request: NextRequest) {
   try {
     const tipo = request.nextUrl.searchParams.get('tipo')?.toUpperCase() || 'CAR';
     
-    const marcas = fipeData.brands
+    // Acessa a estrutura correta
+    const data: any = fipeData;
+    const brands = data.tabelafipe?.brands || data.brands || [];
+    
+    const marcas = brands
       .filter((b: any) => b.type === tipo)
       .map((b: any) => ({
         brand_code: b.code,
         brand_value: b.name
       }))
-      .sort((a, b) => a.brand_value.localeCompare(b.brand_value));
+      .sort((a: any, b: any) => a.brand_value.localeCompare(b.brand_value));
 
     return NextResponse.json({ marcas, total: marcas.length });
   } catch (error: any) {
