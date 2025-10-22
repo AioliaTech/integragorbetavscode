@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fipeData from '@/public/fipe-data.json';
+import fipeDataRaw from '@/public/fipe-data.json';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,7 +7,16 @@ export async function GET(request: NextRequest) {
     const brandCode = request.nextUrl.searchParams.get('brand_code');
     const modeloNome = request.nextUrl.searchParams.get('modelo');
 
-    const brand = fipeData.brands.find(
+    // Força conversão para any
+    const fipeData: any = fipeDataRaw;
+    
+    // Tenta acessar brands de várias formas possíveis
+    let brands = fipeData.brands || 
+                 fipeData.tabelafipe?.brands || 
+                 fipeData[0]?.tabelafipe?.brands || 
+                 [];
+
+    const brand = brands.find(
       (b: any) => b.type === tipo && b.code === parseInt(brandCode || '0')
     );
 
