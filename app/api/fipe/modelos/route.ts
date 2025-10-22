@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'brand_code obrigatório', modelos: [] }, { status: 400 });
     }
 
-    const brand = fipeData.brands.find(
+    // Acessa a estrutura correta
+    const data: any = fipeData;
+    const brands = data.tabelafipe?.brands || data.brands || [];
+
+    const brand = brands.find(
       (b: any) => b.type === tipo && b.code === parseInt(brandCode)
     );
 
@@ -20,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const modelos = brand.models
       .map((m: any) => m.name)
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a: string, b: string) => a.localeCompare(b));
 
     return NextResponse.json({ modelos, total: modelos.length });
   } catch (error: any) {
