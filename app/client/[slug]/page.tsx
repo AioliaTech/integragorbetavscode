@@ -146,9 +146,30 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
   const [configData, setConfigData] = useState({
     endereco: '',
     horario_atendimento: '',
-    whatsapp: ''
+    whatsapp: '',
+    logo_url: '',
+    email_contato: '',
+    instagram_url: '',
+    facebook_url: '',
+    linkedin_url: '',
+    youtube_url: ''
   });
   const [savingConfig, setSavingConfig] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  
+  // Estados para banners
+  const [banners, setBanners] = useState<any[]>([]);
+  const [showBannersModal, setShowBannersModal] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<any>(null);
+  const [bannerForm, setBannerForm] = useState({
+    titulo: '',
+    subtitulo: '',
+    imagem_url: '',
+    link_url: '',
+    ordem: 0,
+    ativo: true
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -159,6 +180,7 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     loadVeiculos();
     loadConfiguracoes();
+    loadBanners();
   }, []);
 
   async function loadVeiculos() {
@@ -184,6 +206,139 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
     }
+  }
+
+  async function loadBanners() {
+    try {
+      const response = await fetch(`/api/client/${params.slug}/banners`);
+      const data = await response.json();
+      if (data.banners) {
+        setBanners(data.banners);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar banners:', error);
+    }
+  }
+
+  async function handleLogoUpload(e: any) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('clienteSlug', params.slug);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setConfigData({ ...configData, logo_url: data.url });
+        alert('Logo carregado! Não esqueça de salvar as configurações.');
+      }
+    } catch (error) {
+      alert('Erro ao fazer upload do logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  async function handleBannerImageUpload(e: any) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('clienteSlug', params.slug);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBannerForm({ ...bannerForm, imagem_url: data.url });
+      }
+    } catch (error) {
+      alert('Erro ao fazer upload da imagem');
+    } finally {
+      setUploadingBanner(false);
+    }
+  }
+
+  async function handleSaveBanner(e: any) {
+    e.preventDefault();
+    
+    if (!bannerForm.imagem_url) {
+      alert('Imagem é obrigatória');
+      return;
+    }
+
+    try {
+      const url = editingBanner
+        ? `/api/client/${params.slug}/banners/${editingBanner.id}`
+        : `/api/client/${params.slug}/banners`;
+      const method = editingBanner ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bannerForm)
+      });
+
+      if (response.ok) {
+        await loadBanners();
+        resetBannerForm();
+        alert(editingBanner ? 'Banner atualizado!' : 'Banner criado!');
+      }
+    } catch (error) {
+      alert('Erro ao salvar banner');
+    }
+  }
+
+  async function handleDeleteBanner(id: string) {
+    if (!confirm('Deletar este banner?')) return;
+
+    try {
+      await fetch(`/api/client/${params.slug}/banners/${id}`, {
+        method: 'DELETE'
+      });
+      await loadBanners();
+      alert('Banner deletado!');
+    } catch (error) {
+      alert('Erro ao deletar banner');
+    }
+  }
+
+  function startEditBanner(banner: any) {
+    setEditingBanner(banner);
+    setBannerForm({
+      titulo: banner.titulo || '',
+      subtitulo: banner.subtitulo || '',
+      imagem_url: banner.imagem_url || '',
+      link_url: banner.link_url || '',
+      ordem: banner.ordem || 0,
+      ativo: banner.ativo
+    });
+  }
+
+  function resetBannerForm() {
+    setEditingBanner(null);
+    setBannerForm({
+      titulo: '',
+      subtitulo: '',
+      imagem_url: '',
+      link_url: '',
+      ordem: 0,
+      ativo: true
+    });
   }
 
   async function handleSaveConfig(e: any) {
@@ -842,8 +997,8 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
       </div>
 
       {showConfigModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
             <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-6">
               <h3 className="text-2xl font-bold text-white">Configurar Catálogo Online</h3>
               <p className="text-purple-100 text-sm mt-1">
@@ -851,46 +1006,172 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
               </p>
             </div>
             
-            <form onSubmit={handleSaveConfig} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Endereço da Loja
+            <form onSubmit={handleSaveConfig} className="p-6 space-y-6">
+              {/* Logo */}
+              <div className="border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
+                <label className="block text-sm font-bold text-purple-900 mb-3">
+                  🎨 Logo da Empresa
                 </label>
-                <input
-                  type="text"
-                  value={configData.endereco}
-                  onChange={(e) => setConfigData({ ...configData, endereco: e.target.value })}
-                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-                  placeholder="Rua Exemplo, 123 - Centro, Cidade/UF"
-                />
+                <div className="flex items-center gap-4">
+                  {configData.logo_url && (
+                    <img src={configData.logo_url} alt="Logo" className="h-20 object-contain" />
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <label
+                      htmlFor="logo-upload"
+                      className="cursor-pointer bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg inline-block transition disabled:opacity-50"
+                    >
+                      {uploadingLogo ? 'Fazendo upload...' : configData.logo_url ? 'Alterar Logo' : 'Fazer Upload do Logo'}
+                    </label>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Recomendado: PNG com fundo transparente, 200x80px
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Horário de Atendimento
-                </label>
-                <input
-                  type="text"
-                  value={configData.horario_atendimento}
-                  onChange={(e) => setConfigData({ ...configData, horario_atendimento: e.target.value })}
-                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-                  placeholder="Seg a Sex: 8h às 18h | Sáb: 8h às 12h"
-                />
+              {/* Informações de Contato */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📍 Endereço da Loja
+                  </label>
+                  <input
+                    type="text"
+                    value={configData.endereco}
+                    onChange={(e) => setConfigData({ ...configData, endereco: e.target.value })}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    placeholder="Rua Exemplo, 123 - Centro, Cidade/UF"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📧 Email de Contato
+                  </label>
+                  <input
+                    type="email"
+                    value={configData.email_contato}
+                    onChange={(e) => setConfigData({ ...configData, email_contato: e.target.value })}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    placeholder="contato@empresa.com.br"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📞 WhatsApp (com DDD)
+                  </label>
+                  <input
+                    type="text"
+                    value={configData.whatsapp}
+                    onChange={(e) => setConfigData({ ...configData, whatsapp: e.target.value })}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    placeholder="51999999999"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🕐 Horário de Atendimento
+                  </label>
+                  <input
+                    type="text"
+                    value={configData.horario_atendimento}
+                    onChange={(e) => setConfigData({ ...configData, horario_atendimento: e.target.value })}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    placeholder="Seg a Sex: 8h às 18h | Sáb: 8h às 12h"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  WhatsApp (com DDD)
+              {/* Redes Sociais */}
+              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                <label className="block text-sm font-bold text-blue-900 mb-3">
+                  📱 Redes Sociais
                 </label>
-                <input
-                  type="text"
-                  value={configData.whatsapp}
-                  onChange={(e) => setConfigData({ ...configData, whatsapp: e.target.value })}
-                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-                  placeholder="51999999999"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Este número aparecerá como botão flutuante no catálogo
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Instagram
+                    </label>
+                    <input
+                      type="url"
+                      value={configData.instagram_url}
+                      onChange={(e) => setConfigData({ ...configData, instagram_url: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                      placeholder="https://instagram.com/seu_perfil"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Facebook
+                    </label>
+                    <input
+                      type="url"
+                      value={configData.facebook_url}
+                      onChange={(e) => setConfigData({ ...configData, facebook_url: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                      placeholder="https://facebook.com/sua_pagina"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      LinkedIn
+                    </label>
+                    <input
+                      type="url"
+                      value={configData.linkedin_url}
+                      onChange={(e) => setConfigData({ ...configData, linkedin_url: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                      placeholder="https://linkedin.com/company/sua_empresa"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      YouTube
+                    </label>
+                    <input
+                      type="url"
+                      value={configData.youtube_url}
+                      onChange={(e) => setConfigData({ ...configData, youtube_url: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                      placeholder="https://youtube.com/@seu_canal"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Gerenciar Banners */}
+              <div className="border-2 border-orange-200 rounded-lg p-4 bg-orange-50">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-bold text-orange-900">
+                    🎬 Banners do Carrossel
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBannersModal(true);
+                      resetBannerForm();
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                  >
+                    Gerenciar Banners
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {banners.length} banner(s) cadastrado(s). Clique em "Gerenciar Banners" para adicionar, editar ou remover.
                 </p>
               </div>
 
@@ -947,6 +1228,237 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
             <div className="p-6 border-t flex gap-3">
               <button type="button" onClick={confirmOpcionais} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg">Confirmar</button>
               <button type="button" onClick={() => setShowOpcionaisModal(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-lg">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gerenciamento de Banners */}
+      {showBannersModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-8">
+            <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6">
+              <h3 className="text-2xl font-bold text-white">Gerenciar Banners do Carrossel</h3>
+              <p className="text-orange-100 text-sm mt-1">
+                Adicione imagens que aparecerão no carrossel da página inicial
+              </p>
+            </div>
+
+            <div className="p-6">
+              {/* Formulário de Banner */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h4 className="font-bold text-lg mb-4">
+                  {editingBanner ? 'Editar Banner' : 'Novo Banner'}
+                </h4>
+                <form onSubmit={handleSaveBanner} className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Título (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={bannerForm.titulo}
+                        onChange={(e) => setBannerForm({ ...bannerForm, titulo: e.target.value })}
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                        placeholder="Ex: Ofertas Especiais"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Subtítulo (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={bannerForm.subtitulo}
+                        onChange={(e) => setBannerForm({ ...bannerForm, subtitulo: e.target.value })}
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                        placeholder="Ex: Até 50% de desconto"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Link (opcional)
+                      </label>
+                      <input
+                        type="url"
+                        value={bannerForm.link_url}
+                        onChange={(e) => setBannerForm({ ...bannerForm, link_url: e.target.value })}
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                        placeholder="https://..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Ordem de Exibição
+                      </label>
+                      <input
+                        type="number"
+                        value={bannerForm.ordem}
+                        onChange={(e) => setBannerForm({ ...bannerForm, ordem: parseInt(e.target.value) || 0 })}
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Imagem do Banner *
+                    </label>
+                    {bannerForm.imagem_url ? (
+                      <div className="relative">
+                        <img
+                          src={bannerForm.imagem_url}
+                          alt="Preview"
+                          className="w-full h-40 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setBannerForm({ ...bannerForm, imagem_url: '' })}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerImageUpload}
+                          disabled={uploadingBanner}
+                          className="hidden"
+                          id="banner-upload"
+                        />
+                        <label
+                          htmlFor="banner-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
+                        >
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <span className="text-sm text-gray-600">
+                            {uploadingBanner ? 'Fazendo upload...' : 'Clique para fazer upload'}
+                          </span>
+                          <span className="text-xs text-gray-500 mt-1">
+                            Recomendado: 1920x600px
+                          </span>
+                        </label>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={bannerForm.ativo}
+                      onChange={(e) => setBannerForm({ ...bannerForm, ativo: e.target.checked })}
+                      className="w-4 h-4"
+                      id="banner-ativo"
+                    />
+                    <label htmlFor="banner-ativo" className="text-sm font-semibold">
+                      Banner ativo (visível no site)
+                    </label>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={!bannerForm.imagem_url}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {editingBanner ? 'Atualizar Banner' : 'Adicionar Banner'}
+                    </button>
+                    {editingBanner && (
+                      <button
+                        type="button"
+                        onClick={resetBannerForm}
+                        className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold"
+                      >
+                        Cancelar Edição
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Lista de Banners */}
+              <div>
+                <h4 className="font-bold text-lg mb-4">Banners Cadastrados ({banners.length})</h4>
+                {banners.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">
+                    Nenhum banner cadastrado. Adicione o primeiro banner acima.
+                  </p>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {banners.map((banner) => (
+                      <div
+                        key={banner.id}
+                        className="border-2 rounded-lg overflow-hidden hover:shadow-lg transition"
+                      >
+                        <img
+                          src={banner.imagem_url}
+                          alt={banner.titulo || 'Banner'}
+                          className="w-full h-32 object-cover"
+                        />
+                        <div className="p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h5 className="font-bold text-gray-800">
+                                {banner.titulo || 'Sem título'}
+                              </h5>
+                              {banner.subtitulo && (
+                                <p className="text-sm text-gray-600">{banner.subtitulo}</p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">Ordem: {banner.ordem}</p>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-semibold ${
+                                banner.ativo
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {banner.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => startEditBanner(banner)}
+                              className="flex-1 bg-blue-100 text-blue-800 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-200 flex items-center justify-center gap-1"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBanner(banner.id)}
+                              className="flex-1 bg-red-100 text-red-800 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 flex items-center justify-center gap-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Deletar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBannersModal(false);
+                  resetBannerForm();
+                }}
+                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-lg"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

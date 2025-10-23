@@ -8,6 +8,8 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
   const [loading, setLoading] = useState(true);
   const [clienteNome, setClienteNome] = useState('');
   const [configuracoes, setConfiguracoes] = useState<any>({});
+  const [banners, setBanners] = useState<any[]>([]);
+  const [bannerAtual, setBannerAtual] = useState(0);
   const [veiculoSelecionado, setVeiculoSelecionado] = useState<any>(null);
   const [fotoAtual, setFotoAtual] = useState(0);
   const [paginaAtual, setPaginaAtual] = useState<'home' | 'estoque' | 'contato'>('home');
@@ -46,11 +48,38 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
       const responseConfig = await fetch(`/api/client/${params.slug}/configuracoes`);
       const dataConfig = await responseConfig.json();
       setConfiguracoes(dataConfig.configuracoes || {});
+
+      const responseBanners = await fetch(`/api/client/${params.slug}/banners`);
+      const dataBanners = await responseBanners.json();
+      if (dataBanners.banners) {
+        // Filtrar apenas banners ativos
+        const bannersAtivos = dataBanners.banners.filter((b: any) => b.ativo);
+        setBanners(bannersAtivos);
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
+  }
+
+  // Auto-avançar carrossel de banners
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setBannerAtual((prev) => (prev + 1) % banners.length);
+    }, 5000); // Muda a cada 5 segundos
+
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
+  function proximoBanner() {
+    setBannerAtual((prev) => (prev + 1) % banners.length);
+  }
+
+  function bannerAnterior() {
+    setBannerAtual((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
   }
 
   const marcasDisponiveis = useMemo(() => {
@@ -225,13 +254,23 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <button onClick={() => navegarPara('home')} className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
-                <div className="text-white font-bold text-2xl leading-none">=</div>
-              </div>
-              <span className="text-2xl font-bold">
-                <span className="text-gray-900">Revend</span>
-                <span className="text-red-600">AI</span>
-              </span>
+              {configuracoes.logo_url ? (
+                <img
+                  src={configuracoes.logo_url}
+                  alt={clienteNome}
+                  className="h-12 object-contain"
+                />
+              ) : (
+                <>
+                  <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
+                    <div className="text-white font-bold text-2xl leading-none">=</div>
+                  </div>
+                  <span className="text-2xl font-bold">
+                    <span className="text-gray-900">Revend</span>
+                    <span className="text-red-600">AI</span>
+                  </span>
+                </>
+              )}
             </button>
 
             {/* Menu Desktop */}
@@ -286,34 +325,109 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
           {/* HOME */}
           {paginaAtual === 'home' && (
             <>
-              {/* Banner Principal - EXATAMENTE como no PDF */}
+              {/* Carrossel de Banners */}
               <section className="relative bg-black overflow-hidden" style={{ minHeight: '500px' }}>
-                {/* Background com formas vermelhas diagonais */}
-                <div className="absolute inset-0">
-                  <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-br from-red-600/20 to-transparent"></div>
-                  <div className="absolute top-20 right-32 w-96 h-96 bg-red-600 opacity-30 transform rotate-45"></div>
-                  <div className="absolute top-48 right-0 w-80 h-80 bg-red-700 opacity-20 transform rotate-12"></div>
-                  <div className="absolute bottom-0 right-64 w-64 h-64 bg-red-800 opacity-25 transform -rotate-12"></div>
-                </div>
-                
-                <div className="max-w-7xl mx-auto px-6 py-20 relative z-10">
-                  <div className="max-w-xl">
-                    <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight mb-6">
-                      Encontre o carro<br />ideal para você
-                    </h1>
-                    <p className="text-xl text-gray-300 mb-4">
-                      Explore nosso catálogo de automóveis com
-                    </p>
-                    <p className="text-xl text-gray-300 mb-8">
-                      qualidade, e as melhores condições da região.
-                    </p>
-                  </div>
-                </div>
+                {banners.length > 0 ? (
+                  <div className="relative w-full h-full">
+                    {/* Banner Atual */}
+                    <div className="relative w-full" style={{ minHeight: '500px' }}>
+                      <img
+                        src={banners[bannerAtual].imagem_url}
+                        alt={banners[bannerAtual].titulo || 'Banner'}
+                        className="w-full h-full object-cover"
+                        style={{ minHeight: '500px' }}
+                      />
+                      
+                      {/* Overlay escuro para melhor legibilidade */}
+                      <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+                      
+                      {/* Texto do Banner */}
+                      {(banners[bannerAtual].titulo || banners[bannerAtual].subtitulo) && (
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="max-w-7xl mx-auto px-6 w-full">
+                            <div className="max-w-2xl">
+                              {banners[bannerAtual].titulo && (
+                                <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight mb-6">
+                                  {banners[bannerAtual].titulo}
+                                </h1>
+                              )}
+                              {banners[bannerAtual].subtitulo && (
+                                <p className="text-xl md:text-2xl text-gray-200 mb-8">
+                                  {banners[bannerAtual].subtitulo}
+                                </p>
+                              )}
+                              {banners[bannerAtual].link_url && (
+                                <a
+                                  href={banners[bannerAtual].link_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition"
+                                >
+                                  Saiba Mais
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                {/* Imagem do carro (se quiser adicionar) */}
-                <div className="absolute right-0 bottom-0 w-1/2 h-full pointer-events-none opacity-80 hidden lg:block">
-                  {/* Você pode adicionar uma imagem de carro aqui */}
-                </div>
+                    {/* Controles do Carrossel */}
+                    {banners.length > 1 && (
+                      <>
+                        <button
+                          onClick={bannerAnterior}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition z-20"
+                        >
+                          <ChevronLeft className="w-6 h-6 text-white" />
+                        </button>
+                        <button
+                          onClick={proximoBanner}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition z-20"
+                        >
+                          <ChevronRight className="w-6 h-6 text-white" />
+                        </button>
+
+                        {/* Indicadores */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                          {banners.map((_, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setBannerAtual(idx)}
+                              className={`w-3 h-3 rounded-full transition ${
+                                idx === bannerAtual ? 'bg-white' : 'bg-white bg-opacity-50'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  /* Banner Padrão caso não haja banners cadastrados */
+                  <>
+                    <div className="absolute inset-0">
+                      <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-br from-red-600/20 to-transparent"></div>
+                      <div className="absolute top-20 right-32 w-96 h-96 bg-red-600 opacity-30 transform rotate-45"></div>
+                      <div className="absolute top-48 right-0 w-80 h-80 bg-red-700 opacity-20 transform rotate-12"></div>
+                      <div className="absolute bottom-0 right-64 w-64 h-64 bg-red-800 opacity-25 transform -rotate-12"></div>
+                    </div>
+                    
+                    <div className="max-w-7xl mx-auto px-6 py-20 relative z-10">
+                      <div className="max-w-xl">
+                        <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight mb-6">
+                          Encontre o carro<br />ideal para você
+                        </h1>
+                        <p className="text-xl text-gray-300 mb-4">
+                          Explore nosso catálogo de automóveis com
+                        </p>
+                        <p className="text-xl text-gray-300 mb-8">
+                          qualidade, e as melhores condições da região.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </section>
 
               {/* Logos de Marcas - EXATAMENTE como no PDF */}
@@ -416,22 +530,42 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
               )}
 
               {/* Redes Sociais */}
-              <section className="bg-black py-16">
-                <div className="max-w-7xl mx-auto px-6 text-center">
-                  <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <div className="text-white font-bold text-3xl leading-none">=</div>
+              {(configuracoes.instagram_url || configuracoes.facebook_url || configuracoes.linkedin_url || configuracoes.youtube_url) && (
+                <section className="bg-black py-16">
+                  <div className="max-w-7xl mx-auto px-6 text-center">
+                    {configuracoes.logo_url ? (
+                      <img src={configuracoes.logo_url} alt={clienteNome} className="h-16 object-contain mx-auto mb-6" />
+                    ) : (
+                      <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <div className="text-white font-bold text-3xl leading-none">=</div>
+                      </div>
+                    )}
+                    <h2 className="text-3xl font-bold text-white mb-8">Nos siga nas redes sociais</h2>
+                    <div className="flex items-center justify-center gap-4">
+                      {configuracoes.instagram_url && (
+                        <a
+                          href={configuracoes.instagram_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-14 h-14 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition"
+                        >
+                          <Instagram className="w-6 h-6 text-black" />
+                        </a>
+                      )}
+                      {configuracoes.facebook_url && (
+                        <a
+                          href={configuracoes.facebook_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-14 h-14 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition"
+                        >
+                          <Facebook className="w-6 h-6 text-black" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <h2 className="text-3xl font-bold text-white mb-8">Nos siga nas redes sociais</h2>
-                  <div className="flex items-center justify-center gap-4">
-                    <button className="w-14 h-14 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition">
-                      <Instagram className="w-6 h-6 text-black" />
-                    </button>
-                    <button className="w-14 h-14 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition">
-                      <Facebook className="w-6 h-6 text-black" />
-                    </button>
-                  </div>
-                </div>
-              </section>
+                </section>
+              )}
             </>
           )}
 
@@ -567,14 +701,16 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
                         </div>
                       )}
 
-                      <div className="flex items-start gap-4">
-                        <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 mt-1">
-                          <Mail className="w-6 h-6 text-red-600" />
+                      {configuracoes.email_contato && (
+                        <div className="flex items-start gap-4">
+                          <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 mt-1">
+                            <Mail className="w-6 h-6 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="text-gray-900">{configuracoes.email_contato}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-gray-900">revendaicontato@gmail.com</p>
-                        </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Mapa */}
@@ -902,13 +1038,19 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
               {/* Logo */}
               <div>
                 <div className="flex items-center gap-2 mb-6">
-                  <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
-                    <div className="text-white font-bold text-2xl leading-none">=</div>
-                  </div>
-                  <span className="text-2xl font-bold">
-                    <span className="text-white">Revend</span>
-                    <span className="text-red-600">AI</span>
-                  </span>
+                  {configuracoes.logo_url ? (
+                    <img src={configuracoes.logo_url} alt={clienteNome} className="h-12 object-contain" />
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
+                        <div className="text-white font-bold text-2xl leading-none">=</div>
+                      </div>
+                      <span className="text-2xl font-bold">
+                        <span className="text-white">Revend</span>
+                        <span className="text-red-600">AI</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -947,18 +1089,36 @@ export default function CatalogoPublico({ params }: { params: { slug: string } }
                       <span>{configuracoes.whatsapp}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <Mail className="w-5 h-5 flex-shrink-0" />
-                    <span>revendaicontato@gmail.com</span>
-                  </div>
-                  <div className="flex gap-3 mt-4">
-                    <button className="w-10 h-10 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full flex items-center justify-center transition">
-                      <Instagram className="w-5 h-5" />
-                    </button>
-                    <button className="w-10 h-10 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full flex items-center justify-center transition">
-                      <Facebook className="w-5 h-5" />
-                    </button>
-                  </div>
+                  {configuracoes.email_contato && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Mail className="w-5 h-5 flex-shrink-0" />
+                      <span>{configuracoes.email_contato}</span>
+                    </div>
+                  )}
+                  {(configuracoes.instagram_url || configuracoes.facebook_url || configuracoes.linkedin_url || configuracoes.youtube_url) && (
+                    <div className="flex gap-3 mt-4">
+                      {configuracoes.instagram_url && (
+                        <a
+                          href={configuracoes.instagram_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-10 h-10 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full flex items-center justify-center transition"
+                        >
+                          <Instagram className="w-5 h-5" />
+                        </a>
+                      )}
+                      {configuracoes.facebook_url && (
+                        <a
+                          href={configuracoes.facebook_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-10 h-10 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full flex items-center justify-center transition"
+                        >
+                          <Facebook className="w-5 h-5" />
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
