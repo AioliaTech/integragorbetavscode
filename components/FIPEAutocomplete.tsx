@@ -235,14 +235,18 @@ export default function FIPEAutocomplete({
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* MARCA */}
       <div ref={marcaRef} className="relative">
-        <label className="block text-sm font-semibold mb-2">Marca</label>
+        <label className="block text-sm font-semibold mb-2">
+          Marca {!tipo?.trim() && <span className="text-orange-500 text-xs">(preencha o tipo primeiro)</span>}
+        </label>
         <input
           type="text"
           value={marcaInput}
           onChange={(e) => {
             const value = e.target.value;
             setMarcaInput(value);
-            setShowMarcas(true);
+            if (tipo && tipo.trim()) {
+              setShowMarcas(true);
+            }
             
             // Atualizar sempre, permitindo valores customizados
             onDadosChange({
@@ -260,7 +264,11 @@ export default function FIPEAutocomplete({
               setTodasVersoes([]);
             }
           }}
-          onFocus={() => setShowMarcas(true)}
+          onFocus={() => {
+            if (tipo && tipo.trim()) {
+              setShowMarcas(true);
+            }
+          }}
           onBlur={() => {
             // Notificar valor final mesmo que não seja da lista
             onDadosChange({
@@ -275,7 +283,7 @@ export default function FIPEAutocomplete({
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
-        {showMarcas && marcasFiltradas.length > 0 && (
+        {showMarcas && marcasFiltradas.length > 0 && tipo && tipo.trim() && (
           <div className="absolute z-30 w-full bg-white border-2 border-gray-200 rounded-lg mt-1 shadow-xl">
             <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 border-b">
               {marcasFiltradas.length} de {todasMarcas.length} marcas
@@ -298,7 +306,7 @@ export default function FIPEAutocomplete({
       {/* MODELO */}
       <div ref={modeloRef} className="relative">
         <label className="block text-sm font-semibold mb-2">
-          Modelo {!marcaSelecionada && <span className="text-gray-400 text-xs">(sugestões disponíveis após selecionar marca)</span>}
+          Modelo {!marcaSelecionada && <span className="text-orange-500 text-xs">(selecione uma marca primeiro)</span>}
         </label>
         <input
           type="text"
@@ -306,7 +314,9 @@ export default function FIPEAutocomplete({
           onChange={(e) => {
             const value = e.target.value;
             setModeloInput(value);
-            setShowModelos(true);
+            if (marcaSelecionada) {
+              setShowModelos(true);
+            }
             
             // Atualizar sempre, permitindo valores customizados
             onDadosChange({
@@ -323,9 +333,11 @@ export default function FIPEAutocomplete({
             }
           }}
           onFocus={() => {
-            setShowModelos(true);
-            if (marcaSelecionada && todosModelos.length === 0) {
-              carregarModelos();
+            if (marcaSelecionada) {
+              setShowModelos(true);
+              if (todosModelos.length === 0) {
+                carregarModelos();
+              }
             }
           }}
           onBlur={() => {
@@ -365,7 +377,7 @@ export default function FIPEAutocomplete({
       {/* VERSÃO */}
       <div ref={versaoRef} className="relative">
         <label className="block text-sm font-semibold mb-2">
-          Versão {!modeloSelecionado && <span className="text-gray-400 text-xs">(sugestões disponíveis após selecionar modelo)</span>}
+          Versão {!modeloSelecionado && <span className="text-orange-500 text-xs">(selecione um modelo primeiro)</span>}
         </label>
         <input
           type="text"
@@ -373,7 +385,9 @@ export default function FIPEAutocomplete({
           onChange={(e) => {
             const value = e.target.value;
             setVersaoInput(value);
-            setShowVersoes(true);
+            if (marcaSelecionada && modeloSelecionado) {
+              setShowVersoes(true);
+            }
             
             // Atualizar sempre, permitindo valores customizados
             onDadosChange({
@@ -384,9 +398,11 @@ export default function FIPEAutocomplete({
             });
           }}
           onFocus={() => {
-            setShowVersoes(true);
-            if (marcaSelecionada && modeloSelecionado && todasVersoes.length === 0) {
-              carregarVersoes();
+            if (marcaSelecionada && modeloSelecionado) {
+              setShowVersoes(true);
+              if (todasVersoes.length === 0) {
+                carregarVersoes();
+              }
             }
           }}
           onBlur={() => {
@@ -403,7 +419,7 @@ export default function FIPEAutocomplete({
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
-        {showVersoes && versoesFiltradas.length > 0 && (
+        {showVersoes && versoesFiltradas.length > 0 && marcaSelecionada && modeloSelecionado && (
           <div className="absolute z-30 w-full bg-white border-2 border-gray-200 rounded-lg mt-1 shadow-xl">
             <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 border-b">
               {versoesFiltradas.length} de {todasVersoes.length} versões
