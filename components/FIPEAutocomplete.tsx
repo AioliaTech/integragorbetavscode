@@ -46,7 +46,7 @@ export default function FIPEAutocomplete({
   const modeloRef = useRef<HTMLDivElement>(null);
   const versaoRef = useRef<HTMLDivElement>(null);
 
-  // Inicializar valores quando receber props
+  // Inicializar valores quando receber props (apenas uma vez)
   useEffect(() => {
     if (!initialized && (initialMarca || initialModelo || initialVersao)) {
       setMarcaInput(initialMarca);
@@ -56,15 +56,17 @@ export default function FIPEAutocomplete({
     }
   }, [initialMarca, initialModelo, initialVersao, initialized]);
 
-  // Só limpar se tipo mudar E não tiver valores iniciais
-  useEffect(() => {
-    if (!initialMarca && !initialModelo && !initialVersao) {
-      limparTudo();
-    }
-  }, [tipo]);
-
+  // Quando TIPO mudar, SEMPRE recarregar as marcas e limpar a cascata
   useEffect(() => {
     if (tipo && tipo.trim()) {
+      // Limpar seleções da cascata, mas manter inputs customizados
+      setMarcaSelecionada(null);
+      setModeloSelecionado('');
+      setTodasMarcas([]);
+      setTodosModelos([]);
+      setTodasVersoes([]);
+      
+      // Recarregar marcas para o novo tipo
       carregarMarcas();
     }
   }, [tipo]);

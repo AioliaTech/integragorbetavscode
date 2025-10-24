@@ -622,6 +622,7 @@ export default function ClientPage({ params }: { params: { slug: string } }) {
                   💡 Use as sugestões da FIPE como auxílio, mas você pode digitar QUALQUER valor personalizado
                 </p>
                 <FIPEAutocomplete
+                  key={formData.tipo || 'carro'}
                   tipo={formData.tipo || 'carro'}
                   initialMarca={formData.marca || ''}
                   initialModelo={formData.modelo || ''}
