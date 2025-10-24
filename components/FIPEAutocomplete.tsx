@@ -5,6 +5,9 @@ import { ChevronDown } from 'lucide-react';
 
 interface FIPEAutocompleteProps {
   tipo: string;
+  initialMarca?: string;
+  initialModelo?: string;
+  initialVersao?: string;
   onDadosChange: (dados: {
     marca: string;
     brandCode: number | null;
@@ -15,13 +18,21 @@ interface FIPEAutocompleteProps {
   }) => void;
 }
 
-export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocompleteProps) {
+export default function FIPEAutocomplete({
+  tipo,
+  initialMarca = '',
+  initialModelo = '',
+  initialVersao = '',
+  onDadosChange
+}: FIPEAutocompleteProps) {
   const [marcaSelecionada, setMarcaSelecionada] = useState<any>(null);
   const [modeloSelecionado, setModeloSelecionado] = useState('');
   
-  const [marcaInput, setMarcaInput] = useState('');
-  const [modeloInput, setModeloInput] = useState('');
-  const [versaoInput, setVersaoInput] = useState('');
+  const [marcaInput, setMarcaInput] = useState(initialMarca);
+  const [modeloInput, setModeloInput] = useState(initialModelo);
+  const [versaoInput, setVersaoInput] = useState(initialVersao);
+  
+  const [initialized, setInitialized] = useState(false);
   
   const [todasMarcas, setTodasMarcas] = useState<any[]>([]);
   const [todosModelos, setTodosModelos] = useState<string[]>([]);
@@ -35,8 +46,21 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
   const modeloRef = useRef<HTMLDivElement>(null);
   const versaoRef = useRef<HTMLDivElement>(null);
 
+  // Inicializar valores quando receber props
   useEffect(() => {
-    limparTudo();
+    if (!initialized && (initialMarca || initialModelo || initialVersao)) {
+      setMarcaInput(initialMarca);
+      setModeloInput(initialModelo);
+      setVersaoInput(initialVersao);
+      setInitialized(true);
+    }
+  }, [initialMarca, initialModelo, initialVersao, initialized]);
+
+  // Só limpar se tipo mudar E não tiver valores iniciais
+  useEffect(() => {
+    if (!initialMarca && !initialModelo && !initialVersao) {
+      limparTudo();
+    }
   }, [tipo]);
 
   useEffect(() => {
@@ -214,23 +238,38 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
           type="text"
           value={marcaInput}
           onChange={(e) => {
-            setMarcaInput(e.target.value);
+            const value = e.target.value;
+            setMarcaInput(value);
             setShowMarcas(true);
             
-            // Se apagou tudo, limpar seleção
-            if (e.target.value === '') {
+            // Atualizar sempre, permitindo valores customizados
+            onDadosChange({
+              marca: value,
+              brandCode: marcaSelecionada?.brand_code || null,
+              modelo: modeloInput,
+              versao: versaoInput
+            });
+            
+            // Se apagou tudo, limpar seleção da cascata
+            if (value === '') {
               setMarcaSelecionada(null);
               setModeloSelecionado('');
-              setModeloInput('');
-              setVersaoInput('');
               setTodosModelos([]);
               setTodasVersoes([]);
-              onDadosChange({ marca: '', brandCode: null, modelo: '', versao: '' });
             }
           }}
           onFocus={() => setShowMarcas(true)}
+          onBlur={() => {
+            // Notificar valor final mesmo que não seja da lista
+            onDadosChange({
+              marca: marcaInput,
+              brandCode: marcaSelecionada?.brand_code || null,
+              modelo: modeloInput,
+              versao: versaoInput
+            });
+          }}
           className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
-          placeholder="Clique aqui..."
+          placeholder="Digite qualquer marca..."
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
@@ -257,37 +296,47 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
       {/* MODELO */}
       <div ref={modeloRef} className="relative">
         <label className="block text-sm font-semibold mb-2">
-          Modelo {!marcaSelecionada && <span className="text-orange-500 text-xs">(selecione marca)</span>}
+          Modelo {!marcaSelecionada && <span className="text-gray-400 text-xs">(sugestões disponíveis após selecionar marca)</span>}
         </label>
         <input
           type="text"
           value={modeloInput}
           onChange={(e) => {
-            setModeloInput(e.target.value);
+            const value = e.target.value;
+            setModeloInput(value);
             setShowModelos(true);
             
-            // Se apagou tudo, limpar seleção
-            if (e.target.value === '') {
+            // Atualizar sempre, permitindo valores customizados
+            onDadosChange({
+              marca: marcaInput,
+              brandCode: marcaSelecionada?.brand_code || null,
+              modelo: value,
+              versao: versaoInput
+            });
+            
+            // Se apagou tudo, limpar versões
+            if (value === '') {
               setModeloSelecionado('');
-              setVersaoInput('');
               setTodasVersoes([]);
-              onDadosChange({ 
-                marca: marcaInput, 
-                brandCode: marcaSelecionada?.brand_code || null, 
-                modelo: '', 
-                versao: '' 
-              });
             }
           }}
           onFocus={() => {
-            if (marcaSelecionada) {
-              setShowModelos(true);
-              if (todosModelos.length === 0) carregarModelos();
+            setShowModelos(true);
+            if (marcaSelecionada && todosModelos.length === 0) {
+              carregarModelos();
             }
           }}
-          disabled={!marcaSelecionada}
-          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-          placeholder="Clique aqui..."
+          onBlur={() => {
+            // Notificar valor final mesmo que não seja da lista
+            onDadosChange({
+              marca: marcaInput,
+              brandCode: marcaSelecionada?.brand_code || null,
+              modelo: modeloInput,
+              versao: versaoInput
+            });
+          }}
+          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+          placeholder="Digite qualquer modelo..."
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
@@ -314,34 +363,41 @@ export default function FIPEAutocomplete({ tipo, onDadosChange }: FIPEAutocomple
       {/* VERSÃO */}
       <div ref={versaoRef} className="relative">
         <label className="block text-sm font-semibold mb-2">
-          Versão {!modeloSelecionado && <span className="text-orange-500 text-xs">(selecione modelo)</span>}
+          Versão {!modeloSelecionado && <span className="text-gray-400 text-xs">(sugestões disponíveis após selecionar modelo)</span>}
         </label>
         <input
           type="text"
           value={versaoInput}
           onChange={(e) => {
-            setVersaoInput(e.target.value);
+            const value = e.target.value;
+            setVersaoInput(value);
             setShowVersoes(true);
             
-            // Se apagou tudo, notificar parent
-            if (e.target.value === '') {
-              onDadosChange({ 
-                marca: marcaInput, 
-                brandCode: marcaSelecionada?.brand_code || null, 
-                modelo: modeloInput, 
-                versao: '' 
-              });
-            }
+            // Atualizar sempre, permitindo valores customizados
+            onDadosChange({
+              marca: marcaInput,
+              brandCode: marcaSelecionada?.brand_code || null,
+              modelo: modeloInput,
+              versao: value
+            });
           }}
           onFocus={() => {
-            if (marcaSelecionada && modeloSelecionado) {
-              setShowVersoes(true);
-              if (todasVersoes.length === 0) carregarVersoes();
+            setShowVersoes(true);
+            if (marcaSelecionada && modeloSelecionado && todasVersoes.length === 0) {
+              carregarVersoes();
             }
           }}
-          disabled={!modeloSelecionado}
-          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-          placeholder="Clique aqui..."
+          onBlur={() => {
+            // Notificar valor final mesmo que não seja da lista
+            onDadosChange({
+              marca: marcaInput,
+              brandCode: marcaSelecionada?.brand_code || null,
+              modelo: modeloInput,
+              versao: versaoInput
+            });
+          }}
+          className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+          placeholder="Digite qualquer versão..."
         />
         <ChevronDown className="absolute right-3 top-[38px] w-5 h-5 text-gray-400 pointer-events-none" />
         
